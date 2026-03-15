@@ -1,4 +1,10 @@
 #!/bin/bash
+# =============================================================================
+# Hardening-Verifizierungsskript
+# =============================================================================
+# Prüft die korrekte Umsetzung der Sicherheitsmaßnahmen.
+# Score-basierte Bewertung zur schnellen Übersicht des Härtungsstands.
+# =============================================================================
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -21,6 +27,8 @@ MAX_SCORE=10
 
 echo
 echo "[1] SSH Passwort-Login deaktiviert"
+# Passwort-Authentifizierung ist anfällig für Brute-Force-Angriffe.
+# SSH-Keys bieten kryptographisch starke Authentifizierung.
 if command -v sshd >/dev/null 2>&1; then
   if sshd -T 2>/dev/null | grep -q "passwordauthentication no"; then
     echo "[+] OK"
@@ -34,6 +42,8 @@ fi
 
 echo
 echo "[2] Root-Login deaktiviert"
+# Direkter Root-Zugang erhöht das Risiko bei kompromittierten Credentials.
+# Loginversuche via normalem User + sudo ermöglichen bessere Nachverfolgung.
 if command -v sshd >/dev/null 2>&1; then
   if sshd -T 2>/dev/null | grep -q "permitrootlogin no"; then
     echo "[+] OK"
@@ -47,6 +57,8 @@ fi
 
 echo
 echo "[3] UFW aktiv"
+# Die Firewall begrenzt eingehende Verbindungen auf explizit erlaubte Ports.
+# Reduziert die Angriffsfläche durch Blockieren unnötiger Netzwerkdienste.
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   echo "[+] OK"
   SCORE=$((SCORE+1))
@@ -56,6 +68,8 @@ fi
 
 echo
 echo "[4] Nur Ports 22/80/443 offen (UFW)"
+# Minimale Port-Öffnung reduziert die Angriffsfläche (Least Privilege).
+# 22=SSH (Administration), 80/443=HTTP/HTTPS (Webdienste)
 if command -v ufw >/dev/null 2>&1; then
   # Extrahiere Ports aus Zeilen mit ALLOW, z.B. "22/tcp", "80", "443/tcp"
   OPEN_PORTS=$(ufw status | awk '/ALLOW/ {print $1}' | sed 's#/tcp##g' | sed 's#/udp##g' | tr '\n' ' ')
@@ -72,6 +86,8 @@ fi
 
 echo
 echo "[5] Fail2Ban aktiv"
+# Fail2Ban erkennt und blockiert automatisch Brute-Force-Angriffe.
+# Bannt IPs nach mehreren fehlgeschlagenen Loginversuchen temporär.
 if command -v fail2ban-client >/dev/null 2>&1 && fail2ban-client status >/dev/null 2>&1; then
   echo "[+] OK"
   SCORE=$((SCORE+1))
@@ -81,6 +97,8 @@ fi
 
 echo
 echo "[6] Fail2Ban Nginx Jail (nginx-badbots)"
+# Schützt vor automatisierten Scans und Bot-Angriffen auf den Webserver.
+# Blockiert IPs mit verdächtigen Zugriffsmustern (404er, Bad Bots).
 if command -v fail2ban-client >/dev/null 2>&1 && fail2ban-client status nginx-badbots >/dev/null 2>&1; then
   echo "[+] OK"
   SCORE=$((SCORE+1))
@@ -90,6 +108,8 @@ fi
 
 echo
 echo "[7] Nginx installiert"
+# Nginx dient als Reverse Proxy mit TLS-Terminierung.
+# Ermöglicht HTTPS-Verschlüsselung und zusätzliche Security-Header.
 if command -v nginx >/dev/null 2>&1; then
   echo "[+] OK"
   SCORE=$((SCORE+1))

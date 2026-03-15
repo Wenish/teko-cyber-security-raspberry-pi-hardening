@@ -1,4 +1,19 @@
 #!/bin/bash
+# =============================================================================
+# Modul 13: Nginx Rate Limiting
+# =============================================================================
+# Sicherheitsziel: Schutz vor DoS-Angriffen und Ressourcenerschöpfung.
+#
+# Rate Limiting begrenzt Anfragen pro IP und Zeit:
+# - limit_req_zone (10r/s): Max 10 Requests pro Sekunde pro IP
+#   Schützt vor HTTP-Flood und Brute-Force auf Webanwendungen
+#
+# - limit_conn_zone (20): Max 20 gleichzeitige Verbindungen pro IP
+#   Verhindert Slowloris-artige Angriffe und Ressourcenblockierung
+#
+# Burst=20 erlaubt kurze Lastspitzen (z.B. initiales Laden einer Seite)
+# ohne legitime Nutzer zu blockieren.
+# =============================================================================
 
 echo "[*] Nginx Rate Limiting konfigurieren"
 
@@ -10,23 +25,31 @@ fi
 
 CONF="/etc/nginx/conf.d/99-hardening-rate-limit.conf"
 
+# Rate-Limiting-Zonen definieren (global für alle Server-Blöcke verfügbar)
 cat <<'EOF' > "$CONF"
-# Simple Rate Limits (global)
-# 10 requests/sec pro IP, burst 20
+# =============================================================================
+# Rate Limiting Konfiguration - DoS-Schutz
+# =============================================================================
+
+# Request-Rate-Limit: Max 10 Anfragen/Sekunde pro IP
+# Zone-Größe 10MB speichert ca. 160.000 IP-Adressen
 limit_req_zone $binary_remote_addr zone=req_per_ip:10m rate=10r/s;
 
-# 20 gleichzeitige Verbindungen pro IP
+# Connection-Limit: Max 20 gleichzeitige Verbindungen pro IP
+# Schützt vor Slowloris und Connection-Exhaustion-Angriffen
 limit_conn_zone $binary_remote_addr zone=conn_per_ip:10m;
 
-# Diese Einstellungen werden in server{} Bloecken per include angewendet,
-# oder wenn dein Default-Site sie einbindet.
+# Anwendung in Server-Blöcken:
+# limit_req zone=req_per_ip burst=20 nodelay;
+# limit_conn conn_per_ip 20;
 EOF
 
-# In default site einhaengen, falls vorhanden und noch nicht enthalten
+# Rate Limiting in Default-Site aktivieren (falls vorhanden)
+# Hardening-Regeln werden direkt nach 'server {' eingefügt
 DEFAULT_SITE="/etc/nginx/sites-available/default"
 if [ -f "$DEFAULT_SITE" ]; then
   if ! grep -q "99-hardening-rate-limit.conf" "$DEFAULT_SITE"; then
-    # Wir fuegen die Anwendung der Limits in den server{} Block ein (direkt nach "server {")
+    # Burst=20 erlaubt kurze Lastspitzen, nodelay verarbeitet diese sofort
     sed -i '/server {/a\\n    # Hardening: Rate limiting / connection limiting\n    limit_req zone=req_per_ip burst=20 nodelay;\n    limit_conn conn_per_ip 20;\n' "$DEFAULT_SITE"
     echo "[+] Rate limits in default site aktiviert"
   else

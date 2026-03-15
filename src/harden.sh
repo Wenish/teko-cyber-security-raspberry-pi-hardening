@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Debian Hardening Script - Hauptskript
+# =============================================================================
+# Dieses Skript orchestriert die Systemhärtung gemäß CIS Benchmarks und
+# Best Practices. Es führt modulare Hardening-Schritte sequenziell aus.
+#
+# Sicherheitsziel: Minimierung der Angriffsfläche durch Defense-in-Depth
+# =============================================================================
 set -euo pipefail
 
-# Lade common helpers
+# Lädt gemeinsame Helper-Funktionen für einheitliche Fehlerbehandlung
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/modules/00_common.sh"
@@ -10,16 +18,20 @@ ensure_root
 
 ok "Starte Debian 13.3 Hardening..."
 
-# Mini-Basis sicherstellen (damit die restlichen Module nicht failen)
+# Basis-Abhängigkeiten für sichere Paketverwaltung installieren
+# - ca-certificates: Vertrauenswürdige Root-Zertifikate für HTTPS-Verbindungen
+# - apt-transport-https: Ermöglicht verschlüsselte Paketquellen
+# - gnupg: Signaturprüfung von Paketen (Integritätssicherung)
 log "Installiere Basis-Tools (falls noetig)"
 apt_install ca-certificates apt-transport-https gnupg
 
-ensure_cmd_or_pkg dpkg-reconfigure debconf
-ensure_cmd_or_pkg sysctl procps
-ensure_cmd_or_pkg sshd openssh-server
-ensure_cmd_or_pkg ufw ufw
+# Sicherstellen, dass kritische Systemtools verfügbar sind
+ensure_cmd_or_pkg dpkg-reconfigure debconf    # Konfigurationsmanagement
+ensure_cmd_or_pkg sysctl procps               # Kernel-Parameter-Steuerung
+ensure_cmd_or_pkg sshd openssh-server         # Sicherer Remote-Zugang
+ensure_cmd_or_pkg ufw ufw                     # Paketfilter-Firewall
 
-# Module ausführen (wenn vorhanden)
+# Modulare Ausführung der Hardening-Schritte
 run_module() {
   local m="$1"
   if [[ -f "$SCRIPT_DIR/$m" ]]; then
