@@ -59,8 +59,8 @@ src/
 
 ### 1. Projekt kopieren
 ```bash
-git clone https://github.com/Wenish/teko-cyber-security-raspberry-pi-hardening.git
-cd teko-cyber-security-raspberry-pi-hardening
+git clone https://github.com/Wenish/teko-cyber-security-hardening.git
+cd teko-cyber-security-hardening
 ```
 
 
